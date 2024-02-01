@@ -92,9 +92,11 @@ class Benchmarker:
             def get_prediction_result(market: Market):
                 with get_openai_callback() as cb:
                     start = time.time()
-                    prediction = agent.research_and_predict(
+                    prediction = agent.evaluate_research_predict(
                         market_question=market.question
                     )
+                    if prediction is None:
+                        return market.question, None
                     prediction.time = time.time() - start
 
                     if cb.total_tokens > 0 and cb.total_cost == 0:
@@ -207,7 +209,9 @@ class Benchmarker:
                     for market in self.markets
                 ]
                 metrics[name].append(
-                    fn(predictions=ordered_predictions, markets=self.markets)
+                    fn(predictions=filtered_predictions, markets=self.markets) 
+                    if (filtered_predictions := [p for p in ordered_predictions if p is not None]) 
+                    else None
                 )
 
         return metrics
@@ -223,7 +227,9 @@ class Benchmarker:
 
         for agent in [a.agent_name for a in self.registered_agents]:
             markets_summary[f"{agent} p_yes"] = [
-                self.get_prediction(agent_name=agent, question=q).p_yes
+                p.p_yes if (p := self.get_prediction(agent_name=agent, question=q)) is not None else None
+                for q in market_questions
+            ]
                 for q in market_questions
             ]
         markets_summary[f"reference p_yes"] = [m.p_yes for m in self.markets]

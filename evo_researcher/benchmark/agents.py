@@ -3,6 +3,7 @@ import json
 import os
 import typing as t
 
+from evo_researcher.functions.evaluate_question import evaluate_question, EvalautedQuestion
 from evo_researcher.functions.research import research as research_evo
 from evo_researcher.autonolas.research import (
     make_prediction,
@@ -11,38 +12,13 @@ from evo_researcher.autonolas.research import (
 from evo_researcher.benchmark.utils import Prediction
 
 
-def parse_prediction_str(prediction: str) -> Prediction:
-    """
-    Parse a prediction string of the form:
-
-    ```json
-    {
-        "p_yes": 0.6,
-        "p_no": 0.4,
-        "confidence": 0.8,
-        "info_utility": 0.9
-    }
-    ```
-
-    into a Prediction object
-    """
-    start_index = prediction.find("{")
-    end_index = prediction.rfind("}")
-    prediction = prediction[start_index : end_index + 1]
-    prediction_json = json.loads(prediction)
-    return Prediction(
-        p_yes=prediction_json["p_yes"],
-        confidence=prediction_json["confidence"],
-        info_utility=prediction_json["info_utility"],
-    )
-
-
-def _make_prediction(market_question: str, additional_information: str) -> Prediction:
-    prediction: str = make_prediction(
+def _make_prediction(
+    market_question: str, additional_information: str
+) -> Prediction:
+    prediction = make_prediction(
         prompt=market_question, additional_information=additional_information
     )
-    prediction: Prediction = parse_prediction_str(prediction)
-    return prediction
+    return Prediction.parse_obj(prediction)
 
 
 class AbstractBenchmarkedAgent:
@@ -50,40 +26,95 @@ class AbstractBenchmarkedAgent:
         self.agent_name = agent_name
         self.max_workers = max_workers  # Limit the number of workers that can run this worker in parallel threads
 
-    def research_and_predict(self, market_question: str) -> Prediction:
+    def evaluate(self, market_question: str) -> EvalautedQuestion:
         raise NotImplementedError
+
+    def research(self, market_question: str) -> t.Optional[str]:
+        raise NotImplementedError
+    
+    def predict(self, market_question: str, researched: str) -> t.Optional[Prediction]:
+        raise NotImplementedError
+
+    def evaluate_research_predict(self, market_question: str) -> t.Optional[Prediction]:
+        eval = self.evaluate(market_question=market_question)
+        if not eval.is_predictable.answer:
+            return None
+        researched = self.research(market_question=market_question)
+        return self.predict(
+            market_question=market_question, 
+            researched=researched
+        ) if researched is not None else None
 
 
 class OlasAgent(AbstractBenchmarkedAgent):
-    def __init__(self, model: str):
-        super().__init__(agent_name="olas")
+    def __init__(self, model: str, temperature: float, agent_name: str = "olas", max_workers: t.Optional[int] = None):
+        super().__init__(agent_name=agent_name, max_workers=max_workers)
         self.model = model
+        self.temperature = temperature
+    def evaluate(self, market_question: str) -> EvalautedQuestion:
+        return evaluate_question(question=market_question)
 
-    def research_and_predict(self, market_question: str) -> Prediction:
-        report = research_autonolas(
-            prompt=market_question,
-            engine=self.model,
-        )
-        return _make_prediction(
-            market_question=market_question, additional_information=report
-        )
-
+    def research(self, market_question: str) -> t.Optional[str]:
+        try:
+            return research_autonolas(
+                prompt=market_question,
+                engine=self.model,
+            )
+        except ValueError as e:
+            print(f"Error in OlasAgent's research: {e}")
+            return None
+        
+    def predict(self, market_question: str, researched: str) -> t.Optional[Prediction]:
+        try:
+            return _make_prediction(
+                market_question=market_question,
+                additional_information=researched,
+                engine=self.model,
+                temperature=self.temperature,
+            )
+        except ValueError as e:
+            print(f"Error in OlasAgent's predict: {e}")
+            return None
 
 class EvoAgent(AbstractBenchmarkedAgent):
-    def __init__(self, model: str):
-        super().__init__(agent_name="evo", max_workers=4)
+    def __init__(self, model: str, temperature: float, agent_name: str = "evo", max_workers: t.Optional[int] = None):
+        super().__init__(agent_name=agent_name, max_workers=max_workers)
         self.model = model
+        self.temperature = temperature
 
-    def research_and_predict(self, market_question: str) -> Prediction:
+    def evaluate(self, market_question: str) -> EvalautedQuestion:
+        return evaluate_question(question=market_question)
+
+    def research(self, market_question: str) -> t.Optional[str]:
         dotenv.load_dotenv()
         open_ai_key = os.getenv("OPENAI_API_KEY")
         tavily_key = os.getenv("TAVILY_API_KEY")
-        report, _ = research_evo(
-            goal=market_question,
-            openai_key=open_ai_key,
-            tavily_key=tavily_key,
-            model=self.model,
-        )
-        return _make_prediction(
-            market_question=market_question, additional_information=report
-        )
+        try:
+            report, _ = research_evo(
+                goal=market_question,
+                openai_key=open_ai_key,
+                tavily_key=tavily_key,
+                model=self.model,
+            )
+            return report
+        except ValueError as e:
+            print(f"Error in EvoAgent's research: {e}")
+            return None
+
+    def predict(self, market_question: str, researched: str) -> t.Optional[Prediction]:
+        try:
+            return _make_prediction(
+                market_question=market_question, 
+                additional_information=researched,
+                engine=self.model,
+                temperature=self.temperature,
+            )
+        except ValueError as e:
+            print(f"Error in EvoAgent's predict: {e}")
+            return None
+
+
+AGENTS = [
+    OlasAgent,
+    EvoAgent,
+]

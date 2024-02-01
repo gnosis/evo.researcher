@@ -11,14 +11,14 @@ def dummy_agent():
         def __init__(self):
             super().__init__(agent_name="dummy")
 
-        def research_and_predict(self, market_question: str) -> bm.Prediction:
+        def evaluate_research_predict(self, market_question: str) -> bm.Prediction:
             return bm.Prediction(p_yes=0.6, confidence=0.8, info_utility=0.9)
 
     return DummyAgent()
 
 
 def test_agent_prediction(dummy_agent):
-    prediction = dummy_agent.research_and_predict(market_question="Will GNO go up?")
+    prediction = dummy_agent.evaluate_research_predict(market_question="Will GNO go up?")
     assert prediction.p_yes == 0.6
     assert prediction.confidence == 0.8
     assert prediction.info_utility == 0.9
