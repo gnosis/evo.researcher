@@ -67,7 +67,7 @@ class Benchmarker:
     def add_prediction(
         self,
         agent: AbstractBenchmarkedAgent,
-        prediction: Prediction,
+        prediction: t.Optional[Prediction],
         market_question: str,
     ):
         self.predictions.add_prediction(
@@ -76,7 +76,7 @@ class Benchmarker:
             prediction=prediction,
         )
 
-    def get_prediction(self, agent_name: str, question: str) -> Prediction:
+    def get_prediction(self, agent_name: str, question: str) -> t.Optional[Prediction]:
         return self.predictions.get_prediction(agent_name=agent_name, question=question)
 
     def run_agents(self):
@@ -219,10 +219,12 @@ class Benchmarker:
                     self.get_prediction(question=market.question, agent_name=agent)
                     for market in self.markets
                 ]
+                filtered_predictions, filtered_markets = zip(
+                    *[(p, m) for p, m in zip(ordered_predictions, self.markets) if p is not None]
+                )
+                assert len(filtered_predictions) == len(filtered_markets)
                 metrics[name].append(
-                    fn(predictions=filtered_predictions, markets=self.markets) 
-                    if (filtered_predictions := [p for p in ordered_predictions if p is not None]) 
-                    else None
+                    fn(predictions=filtered_predictions, markets=filtered_markets) if filtered_predictions else None
                 )
 
         return metrics
