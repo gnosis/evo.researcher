@@ -1155,7 +1155,7 @@ def make_prediction(prompt: str, additional_information: str, **kwargs) -> Predi
         "additional_information": additional_information,
         "timestamp": formatted_time_utc,
     })
-    response = json.loads(clean_completion_json(completion))
+    response = json.loads(clean_completion_json(response))
     return response
 
 
