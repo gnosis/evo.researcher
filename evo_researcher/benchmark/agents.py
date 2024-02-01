@@ -140,9 +140,6 @@ class RephrasingOlasAgent(OlasAgent):
         self.use_negated_question = use_negated_question
         self.use_universal_question = use_universal_question
 
-    def evaluate(self, market_question: str) -> EvalautedQuestion:
-        return evaluate_question(question=market_question)
-    
     def research(self, market_question: str) -> t.Optional[str]:
         questions = rephrase_question(question=market_question)
 
