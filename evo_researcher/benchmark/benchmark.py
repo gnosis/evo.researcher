@@ -66,7 +66,7 @@ class Benchmarker:
     def add_prediction(
         self,
         agent: AbstractBenchmarkedAgent,
-        prediction: Prediction,
+        prediction: t.Optional[Prediction],
         market_question: str,
     ):
         self.predictions.add_prediction(
@@ -75,7 +75,7 @@ class Benchmarker:
             prediction=prediction,
         )
 
-    def get_prediction(self, agent_name: str, question: str) -> Prediction:
+    def get_prediction(self, agent_name: str, question: str) -> t.Optional[Prediction]:
         return self.predictions.get_prediction(agent_name=agent_name, question=question)
 
     def run_agents(self):

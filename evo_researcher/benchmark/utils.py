@@ -27,14 +27,14 @@ class Prediction(BaseModel):
     cost: t.Optional[float] = None
 
 
-AgentPredictions = t.Dict[str, Prediction]
+AgentPredictions = t.Dict[str, t.Optional[Prediction]]
 Predictions = t.Dict[str, AgentPredictions]
 
 
 class PredictionsCache(BaseModel):
     predictions: Predictions
 
-    def get_prediction(self, agent_name: str, question: str) -> Prediction:
+    def get_prediction(self, agent_name: str, question: str) -> t.Optional[Prediction]:
         return self.predictions[agent_name][question]
 
     def has_market(self, agent_name: str, question: str) -> bool:
@@ -42,7 +42,7 @@ class PredictionsCache(BaseModel):
             agent_name in self.predictions and question in self.predictions[agent_name]
         )
 
-    def add_prediction(self, agent_name: str, question: str, prediction: Prediction):
+    def add_prediction(self, agent_name: str, question: str, prediction: t.Optional[Prediction]):
         if agent_name not in self.predictions:
             self.predictions[agent_name] = {}
         assert question not in self.predictions[agent_name]
