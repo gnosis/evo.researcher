@@ -20,11 +20,17 @@ class Market(BaseModel):
 
 
 class Prediction(BaseModel):
+    decision: t.Literal["y", "n"]
+    decision_token_prob: float
     p_yes: float
     confidence: float
     info_utility: float
     time: t.Optional[float] = None
     cost: t.Optional[float] = None
+
+    @property
+    def p_yes_from_decision_token_prob(self) -> float:
+        return self.decision_token_prob if self.decision == "y" else 1 - self.decision_token_prob
 
 
 AgentPredictions = t.Dict[str, Prediction]

@@ -45,6 +45,7 @@ class Benchmarker:
         self.metric_fns = metric_fns
         predefined_metric_fns = {
             "MSE for `p_yes`": self._compute_mse,
+            "MSE for `yes` based on token's prob": self._compute_mse_token_prob,
             "Mean confidence": self._compute_mean_confidence,
             "% within +-0.05": lambda predictions, markets: self._compute_percentage_within_range(
                 predictions, markets, tolerance=0.05
@@ -131,7 +132,17 @@ class Benchmarker:
         mse = sum([(p.p_yes - m.p_yes) ** 2 for p, m in zip(predictions, markets)])
         mse /= len(predictions)
         return mse
-
+    
+    def _compute_mse_token_prob(
+        self, predictions: t.List[Prediction], markets: t.List[Market]
+    ):
+        mse = sum([
+            (p.p_yes_from_decision_token_prob - m.p_yes) ** 2 
+            for p, m in zip(predictions, markets)
+        ])
+        mse /= len(predictions)
+        return mse
+ 
     def _compute_mean_confidence(
         self, predictions: t.List[Prediction], markets: t.List[Market]
     ):
@@ -230,6 +241,8 @@ class Benchmarker:
                 p.p_yes if (p := self.get_prediction(agent_name=agent, question=q)) is not None else None
                 for q in market_questions
             ]
+            markets_summary[f"{agent} p_yes based on token's prob"] = [
+                p.p_yes_from_decision_token_prob if (p := self.get_prediction(agent_name=agent, question=q)) is not None else None
                 for q in market_questions
             ]
         markets_summary[f"reference p_yes"] = [m.p_yes for m in self.markets]
