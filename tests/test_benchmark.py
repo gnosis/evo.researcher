@@ -1,8 +1,9 @@
 import pytest
 import tempfile
-
+import json
+from typing import Optional
 import evo_researcher.benchmark.benchmark as bm
-from evo_researcher.benchmark.agents import parse_prediction_str
+from evo_researcher.autonolas.research import clean_completion_json
 
 
 @pytest.fixture
@@ -11,10 +12,22 @@ def dummy_agent():
         def __init__(self):
             super().__init__(agent_name="dummy")
 
-        def evaluate_research_predict(self, market_question: str) -> bm.Prediction:
+        def evaluate_research_predict(self, market_question: str) -> Optional[bm.Prediction]:
             return bm.Prediction(p_yes=0.6, confidence=0.8, info_utility=0.9)
 
     return DummyAgent()
+
+
+@pytest.fixture
+def dummy_agent_none():
+    class DummyAgentNone(bm.AbstractBenchmarkedAgent):
+        def __init__(self):
+            super().__init__(agent_name="dummy_none")
+
+        def evaluate_research_predict(self, market_question: str) -> Optional[bm.Prediction]:
+            return None
+
+    return DummyAgentNone()
 
 
 def test_agent_prediction(dummy_agent):
@@ -24,10 +37,10 @@ def test_agent_prediction(dummy_agent):
     assert prediction.info_utility == 0.9
 
 
-def test_benchmark_run(dummy_agent):
+def test_benchmark_run(dummy_agent, dummy_agent_none):
     benchmarker = bm.Benchmarker(
         markets=bm.get_markets(number=1, source=bm.MarketSource.MANIFOLD),
-        agents=[dummy_agent],
+        agents=[dummy_agent, dummy_agent_none],
     )
     benchmarker.run_agents()
     benchmarker.generate_markdown_report()
@@ -44,7 +57,7 @@ def test_parse_result_str_to_json():
         "}\n"
         "```\n"
     )
-    prediction: bm.Prediction = parse_prediction_str(prediction)
+    prediction = bm.Prediction.parse_obj(json.loads(clean_completion_json(prediction)))
     assert prediction.p_yes == 0.6
     assert prediction.confidence == 0.8
     assert prediction.info_utility == 0.9

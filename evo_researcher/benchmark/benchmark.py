@@ -208,9 +208,11 @@ class Benchmarker:
                     self.get_prediction(question=market.question, agent_name=agent)
                     for market in self.markets
                 ]
-                filtered_predictions, filtered_markets = zip(
-                    *[(p, m) for p, m in zip(ordered_predictions, self.markets) if p is not None]
-                )
+                filtered_predictions, filtered_markets = [], []
+                for p, m in zip(ordered_predictions, self.markets):
+                    if p is not None:
+                        filtered_predictions.append(p)
+                        filtered_markets.append(m)
                 assert len(filtered_predictions) == len(filtered_markets)
                 metrics[name].append(
                     fn(predictions=filtered_predictions, markets=filtered_markets) if filtered_predictions else None
