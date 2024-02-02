@@ -15,10 +15,10 @@ from evo_researcher.benchmark.utils import Prediction
 
 
 def _make_prediction(
-    market_question: str, additional_information: str
+    market_question: str, additional_information: str, engine: str, temperature: float
 ) -> Prediction:
     prediction = make_prediction(
-        prompt=market_question, additional_information=additional_information
+        prompt=market_question, additional_information=additional_information, engine=engine, temperature=temperature
     )
     return Prediction.parse_obj(prediction)
 
