@@ -127,8 +127,6 @@ class RephrasingOlasAgent(OlasAgent):
         agent_name: str = "reph-olas",
         max_workers: t.Optional[int] = None,
         embedding_model: EmbeddingModel = EmbeddingModel.spacy,
-        use_negated_question: bool = True,
-        use_universal_question: bool = True,
     ):
         super().__init__(
             model=model,
@@ -137,8 +135,6 @@ class RephrasingOlasAgent(OlasAgent):
             agent_name=agent_name,
             max_workers=max_workers,
         )
-        self.use_negated_question = use_negated_question
-        self.use_universal_question = use_universal_question
 
     def research(self, market_question: str) -> t.Optional[str]:
         questions = rephrase_question(question=market_question)
