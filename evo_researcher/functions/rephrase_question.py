@@ -12,7 +12,7 @@ QUESTION_REPHRASE_PROMPT = """We have the following question: `{question}`
 Write a dictionary with following keys, don't answer the question, only rewrite it in the following ways:
 
 ```
-- universal_question: Ask the question universally
+- open_ended_question: Ask the question universally
 - negated_question Ask the question in negation
 ```
 """
@@ -21,7 +21,7 @@ Write a dictionary with following keys, don't answer the question, only rewrite 
 class RephrasedQuestion(BaseModel):
     original_question: str
     negated_question: str
-    universal_question: str
+    open_ended_question: str
 
 
 def rephrase_question(
@@ -33,7 +33,7 @@ def rephrase_question(
 
     original_question: Is the sky blue?
     negated_question: Is the sky not blue?
-    universal_question: What is the color of the sky?
+    open_ended_question: What is the color of the sky?
     """
     tokenizer = tiktoken.encoding_for_model(engine)
     llm = ChatOpenAI(model=engine, temperature=0.0)

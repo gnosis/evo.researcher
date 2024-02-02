@@ -141,7 +141,7 @@ class RephrasingOlasAgent(OlasAgent):
 
         report_original = super().research(market_question=questions.original_question)
         report_negated = super().research(market_question=questions.negated_question)
-        report_universal = super().research(market_question=questions.universal_question)
+        report_universal = super().research(market_question=questions.open_ended_question)
 
         report_concat = "\n\n---\n\n".join([
             f"### {r_name}\n\n{r}"
