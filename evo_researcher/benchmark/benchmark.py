@@ -242,8 +242,6 @@ class Benchmarker:
                 p.completion_prediction.p_yes if (p := self.get_prediction(agent_name=agent, question=q)).completion_prediction else None
                 for q in market_questions
             ]
-                for q in market_questions
-            ]
         markets_summary[f"reference p_yes"] = [m.p_yes for m in self.markets]
         return markets_summary
 
