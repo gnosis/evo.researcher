@@ -19,15 +19,25 @@ class Market(BaseModel):
     is_resolved: bool
 
 
-class Prediction(BaseModel):
+
+class CompletionPrediction(BaseModel):
     p_yes: float
     confidence: float
-    info_utility: float
+
+
+class Prediction(BaseModel):
+    question_evaluation: t.Optional[EvalautedQuestion]
+    completion_prediction: t.Optional[CompletionPrediction]
+    
+    info_utility: t.Optional[float]
     time: t.Optional[float] = None
     cost: t.Optional[float] = None
 
+    @property
+    def is_answered(self) -> bool:
+        return self.token_prob_prediction is not None or self.completion_prediction is not None
 
-AgentPredictions = t.Dict[str, t.Optional[Prediction]]
+AgentPredictions = t.Dict[str, Prediction]
 Predictions = t.Dict[str, AgentPredictions]
 
 

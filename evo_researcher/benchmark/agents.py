@@ -7,18 +7,40 @@ from evo_researcher.functions.evaluate_question import evaluate_question, Evalau
 from evo_researcher.functions.research import research as research_evo
 from evo_researcher.autonolas.research import (
     make_prediction,
+    Prediction as LLMCompletionPredictionDict,
     research as research_autonolas,
 )
-from evo_researcher.benchmark.utils import Prediction
+from evo_researcher.benchmark.utils import (
+    Prediction, 
+    CompletionPrediction, 
+    EvalautedQuestion,
+)
 
 
 def _make_prediction(
-    market_question: str, additional_information: str
+    market_question: str, additional_information: str, evaluation_information: t.Optional[EvalautedQuestion], engine: str, temperature: float
 ) -> Prediction:
+    """
+    We prompt model to output a simple flat JSON and convert it to a more structured pydantic model here.
+    """
     prediction = make_prediction(
-        prompt=market_question, additional_information=additional_information
+        prompt=market_question, additional_information=additional_information, engine=engine, temperature=temperature
     )
-    return Prediction.parse_obj(prediction)
+    return completion_prediction_json_to_pydantic_model(prediction, evaluation_information)
+
+
+def completion_prediction_json_to_pydantic_model(
+    completion_prediction: LLMCompletionPredictionDict, 
+    evaluation_information: t.Optional[EvalautedQuestion],
+) -> Prediction:
+    return Prediction(
+        question_evaluation=evaluation_information,
+        completion_prediction=CompletionPrediction(
+            p_yes=completion_prediction["p_yes"],
+            confidence=completion_prediction["confidence"],
+        ),
+        info_utility=completion_prediction["info_utility"],
+    )
 
 
 class AbstractBenchmarkedAgent:
@@ -32,18 +54,21 @@ class AbstractBenchmarkedAgent:
     def research(self, market_question: str) -> t.Optional[str]:
         raise NotImplementedError
     
-    def predict(self, market_question: str, researched: str) -> t.Optional[Prediction]:
+    def predict(self, market_question: str, researched: str, evaluated: EvalautedQuestion) -> t.Optional[Prediction]:
         raise NotImplementedError
 
-    def evaluate_research_predict(self, market_question: str) -> t.Optional[Prediction]:
+    def evaluate_research_predict(self, market_question: str) -> Prediction:
         eval = self.evaluate(market_question=market_question)
         if not eval.is_predictable.answer:
-            return None
+            return Prediction(question_evaluation=eval)
         researched = self.research(market_question=market_question)
+        if researched is None:
+            return Prediction(question_evaluation=eval)
         return self.predict(
             market_question=market_question, 
-            researched=researched
-        ) if researched is not None else None
+            researched=researched,
+            evaluated=eval,
+        )
 
 
 class OlasAgent(AbstractBenchmarkedAgent):
@@ -64,11 +89,12 @@ class OlasAgent(AbstractBenchmarkedAgent):
             print(f"Error in OlasAgent's research: {e}")
             return None
         
-    def predict(self, market_question: str, researched: str) -> t.Optional[Prediction]:
+    def predict(self, market_question: str, researched: str, evaluated: EvalautedQuestion) -> t.Optional[Prediction]:
         try:
             return _make_prediction(
                 market_question=market_question,
                 additional_information=researched,
+                evaluation_information=evaluated,
                 engine=self.model,
                 temperature=self.temperature,
             )
@@ -101,11 +127,12 @@ class EvoAgent(AbstractBenchmarkedAgent):
             print(f"Error in EvoAgent's research: {e}")
             return None
 
-    def predict(self, market_question: str, researched: str) -> t.Optional[Prediction]:
+    def predict(self, market_question: str, researched: str, evaluated: EvalautedQuestion) -> t.Optional[Prediction]:
         try:
             return _make_prediction(
                 market_question=market_question, 
                 additional_information=researched,
+                evaluation_information=evaluated,
                 engine=self.model,
                 temperature=self.temperature,
             )

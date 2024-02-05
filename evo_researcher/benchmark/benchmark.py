@@ -58,6 +58,8 @@ class Benchmarker:
             "% correct outcome": self._compute_correct_outcome_percentage,
             "confidence/p_yes error correlation": self._compute_confidence_p_yes_error_correlation,
             "Mean info_utility": self._compute_mean_info_utility,
+            "Ratio answerable": self._compute_ratio_evaluated_as_answerable,
+            "Ratio answered": self._compute_ratio_answered,
             "Mean cost ($)": self._compute_mean_cost,
             "Mean time (s)": self._compute_mean_time,
         }
@@ -128,14 +130,14 @@ class Benchmarker:
                     self.predictions.save(self.cache_path)
 
     def _compute_mse(self, predictions: t.List[Prediction], markets: t.List[Market]):
-        mse = sum([(p.p_yes - m.p_yes) ** 2 for p, m in zip(predictions, markets)])
+        mse = sum([(p.completion_prediction.p_yes - m.p_yes) ** 2 for p, m in zip(predictions, markets)])
         mse /= len(predictions)
         return mse
 
     def _compute_mean_confidence(
         self, predictions: t.List[Prediction], markets: t.List[Market]
     ):
-        mean_confidence = sum([p.confidence for p in predictions]) / len(predictions)
+        mean_confidence = sum([p.completion_prediction.confidence for p in predictions]) / len(predictions)
         return mean_confidence
 
     def _compute_mean_info_utility(
@@ -154,7 +156,7 @@ class Benchmarker:
     ):
         within_range_count = 0
         for p, m in zip(predictions, markets):
-            if abs(p.p_yes - m.p_yes) <= tolerance:
+            if abs(p.completion_prediction.p_yes - m.p_yes) <= tolerance:
                 within_range_count += 1
 
         return (100 * within_range_count) / len(predictions)
@@ -164,7 +166,7 @@ class Benchmarker:
     ):
         correct_outcome_count = 0
         for p, m in zip(predictions, markets):
-            if (p.p_yes > 0.5 and m.p_yes > 0.5) or (p.p_yes < 0.5 and m.p_yes < 0.5):
+            if (p.completion_prediction.p_yes > 0.5 and m.p_yes > 0.5) or (p.completion_prediction.p_yes < 0.5 and m.p_yes < 0.5):
                 correct_outcome_count += 1
 
         return (100 * correct_outcome_count) / len(predictions)
@@ -172,8 +174,8 @@ class Benchmarker:
     def _compute_confidence_p_yes_error_correlation(
         self, predictions: t.List[Prediction], markets: t.List[Market]
     ):
-        p_yes_errors = [abs(p.p_yes - m.p_yes) for p, m in zip(predictions, markets)]
-        confidences = [p.confidence for p in predictions]
+        p_yes_errors = [abs(p.completion_prediction.p_yes - m.p_yes) for p, m in zip(predictions, markets)]
+        confidences = [p.completion_prediction.confidence for p in predictions]
         return np.corrcoef(confidences, p_yes_errors)[0, 1]
 
     def _compute_mean_cost(
@@ -195,7 +197,13 @@ class Benchmarker:
             return sum(times) / len(times)
         else:
             return None
-
+        
+    def _compute_ratio_evaluated_as_answerable(self, predictions: t.List[Prediction], markets: t.List[Market]):
+        return sum(1 for p in predictions if p.question_evaluation and p.question_evaluation.is_predictable.answer) / len(predictions)
+       
+    def _compute_ratio_answered(self, predictions: t.List[Prediction], markets: t.List[Market]):
+        return sum(1 for p in predictions if p.is_answered) / len(predictions)
+       
     def compute_metrics(self) -> t.Dict[str, t.List[t.Any]]:
         metrics = {}
         agents = [a.agent_name for a in self.registered_agents]
@@ -210,7 +218,7 @@ class Benchmarker:
                 ]
                 filtered_predictions, filtered_markets = [], []
                 for p, m in zip(ordered_predictions, self.markets):
-                    if p is not None:
+                    if p.is_answered:
                         filtered_predictions.append(p)
                         filtered_markets.append(m)
                 assert len(filtered_predictions) == len(filtered_markets)
@@ -231,7 +239,9 @@ class Benchmarker:
 
         for agent in [a.agent_name for a in self.registered_agents]:
             markets_summary[f"{agent} p_yes"] = [
-                p.p_yes if (p := self.get_prediction(agent_name=agent, question=q)) is not None else None
+                p.completion_prediction.p_yes if (p := self.get_prediction(agent_name=agent, question=q)).completion_prediction else None
+                for q in market_questions
+            ]
                 for q in market_questions
             ]
         markets_summary[f"reference p_yes"] = [m.p_yes for m in self.markets]
