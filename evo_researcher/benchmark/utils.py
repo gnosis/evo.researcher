@@ -3,6 +3,7 @@ import json
 import requests
 import typing as t
 from pydantic import BaseModel
+from evo_researcher.functions.evaluate_question import EvalautedQuestion
 
 
 class MarketSource(Enum):
@@ -35,7 +36,7 @@ class Prediction(BaseModel):
 
     @property
     def is_answered(self) -> bool:
-        return self.token_prob_prediction is not None or self.completion_prediction is not None
+        return self.completion_prediction is not None
 
 AgentPredictions = t.Dict[str, Prediction]
 Predictions = t.Dict[str, AgentPredictions]
