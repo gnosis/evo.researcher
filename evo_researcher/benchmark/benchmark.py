@@ -129,7 +129,19 @@ class Benchmarker:
                 if self.cache_path:
                     self.predictions.save(self.cache_path)
 
+    @staticmethod
+    def filter_predictions_for_answered(predictions: list[Prediction], markets: list[Market]) -> t.Tuple[list[Prediction], list[Market]]:
+        filtered_predictions, filtered_markets = [], []
+        for p, m in zip(predictions, markets):
+            if p.is_answered:
+                filtered_predictions.append(p)
+                filtered_markets.append(m)
+        return filtered_predictions, filtered_markets
+
     def _compute_mse(self, predictions: t.List[Prediction], markets: t.List[Market]):
+        predictions, markets = self.filter_predictions_for_answered(predictions, markets)
+        if not predictions:
+            return None
         mse = sum([(p.completion_prediction.p_yes - m.p_yes) ** 2 for p, m in zip(predictions, markets)])
         mse /= len(predictions)
         return mse
@@ -137,12 +149,18 @@ class Benchmarker:
     def _compute_mean_confidence(
         self, predictions: t.List[Prediction], markets: t.List[Market]
     ):
+        predictions, markets = self.filter_predictions_for_answered(predictions, markets)
+        if not predictions:
+            return None
         mean_confidence = sum([p.completion_prediction.confidence for p in predictions]) / len(predictions)
         return mean_confidence
 
     def _compute_mean_info_utility(
         self, predictions: t.List[Prediction], markets: t.List[Market]
     ):
+        predictions, markets = self.filter_predictions_for_answered(predictions, markets)
+        if not predictions:
+            return None
         mean_info_utility = sum([p.info_utility for p in predictions]) / len(
             predictions
         )
@@ -154,6 +172,10 @@ class Benchmarker:
         markets: t.List[Market],
         tolerance: float = 0.05,
     ):
+        predictions, markets = self.filter_predictions_for_answered(predictions, markets)
+        if not predictions:
+            return None
+
         within_range_count = 0
         for p, m in zip(predictions, markets):
             if abs(p.completion_prediction.p_yes - m.p_yes) <= tolerance:
@@ -164,6 +186,10 @@ class Benchmarker:
     def _compute_correct_outcome_percentage(
         self, predictions: t.List[Prediction], markets: t.List[Market]
     ):
+        predictions, markets = self.filter_predictions_for_answered(predictions, markets)
+        if not predictions:
+            return None
+
         correct_outcome_count = 0
         for p, m in zip(predictions, markets):
             if (p.completion_prediction.p_yes > 0.5 and m.p_yes > 0.5) or (p.completion_prediction.p_yes < 0.5 and m.p_yes < 0.5):
@@ -174,6 +200,10 @@ class Benchmarker:
     def _compute_confidence_p_yes_error_correlation(
         self, predictions: t.List[Prediction], markets: t.List[Market]
     ):
+        predictions, markets = self.filter_predictions_for_answered(predictions, markets)
+        if not predictions:
+            return None
+
         p_yes_errors = [abs(p.completion_prediction.p_yes - m.p_yes) for p, m in zip(predictions, markets)]
         confidences = [p.completion_prediction.confidence for p in predictions]
         return np.corrcoef(confidences, p_yes_errors)[0, 1]
@@ -216,15 +246,7 @@ class Benchmarker:
                     self.get_prediction(question=market.question, agent_name=agent)
                     for market in self.markets
                 ]
-                filtered_predictions, filtered_markets = [], []
-                for p, m in zip(ordered_predictions, self.markets):
-                    if p.is_answered:
-                        filtered_predictions.append(p)
-                        filtered_markets.append(m)
-                assert len(filtered_predictions) == len(filtered_markets)
-                metrics[name].append(
-                    fn(predictions=filtered_predictions, markets=filtered_markets) if filtered_predictions else None
-                )
+                metrics[name].append(fn(predictions=ordered_predictions, markets=self.markets))
 
         return metrics
 
