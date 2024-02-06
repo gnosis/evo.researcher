@@ -3,6 +3,7 @@ import json
 import requests
 import typing as t
 from pydantic import BaseModel
+from evo_researcher.functions.evaluate_question import EvalautedQuestion
 
 
 class MarketSource(Enum):
@@ -20,17 +21,16 @@ class Market(BaseModel):
 
 
 class Prediction(BaseModel):
-    decision: t.Literal["y", "n"]
-    decision_token_prob: float
     p_yes: float
     confidence: float
-    info_utility: float
+    question_evaluation: t.Optional[EvalautedQuestion]
+    
+    info_utility: t.Optional[float]
     time: t.Optional[float] = None
     cost: t.Optional[float] = None
 
-    @property
-    def p_yes_from_decision_token_prob(self) -> float:
-        return self.decision_token_prob if self.decision == "y" else 1 - self.decision_token_prob
+    def is_answered(self) -> bool:
+        return self.completion_prediction is not None
 
 
 AgentPredictions = t.Dict[str, t.Optional[Prediction]]
@@ -171,3 +171,8 @@ def get_llm_api_call_cost(model: str, prompt_tokens: int, completion_tokens) -> 
     model_cost += model_costs[model]["completion_tokens"] * completion_tokens
     model_cost /= 1000
     return model_cost
+
+
+def should_not_happen(message: str, E: t.Type[Exception] = RuntimeError) -> t.NoReturn:
+    raise E(message)
+
