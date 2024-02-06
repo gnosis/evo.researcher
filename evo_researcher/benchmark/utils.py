@@ -176,3 +176,8 @@ def get_llm_api_call_cost(model: str, prompt_tokens: int, completion_tokens) -> 
     model_cost += model_costs[model]["completion_tokens"] * completion_tokens
     model_cost /= 1000
     return model_cost
+
+
+def should_not_happen(message: str, E: t.Type[Exception] = RuntimeError) -> t.NoReturn:
+    raise E(message)
+

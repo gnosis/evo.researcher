@@ -7,7 +7,9 @@ import evo_researcher.benchmark.benchmark as bm
 from evo_researcher.benchmark.agents import (
     completion_prediction_json_to_pydantic_model, 
     CompletionPrediction, 
+    EvalautedQuestion, 
 )
+from evo_researcher.functions.evaluate_question import IsPredictable
 from evo_researcher.autonolas.research import clean_completion_json
 
 
@@ -19,8 +21,17 @@ def dummy_agent():
 
         def evaluate_research_predict(self, market_question: str) -> bm.Prediction:
             return bm.Prediction(
+                question_evaluation=EvalautedQuestion(
+                    question="...",
+                    is_predictable=IsPredictable(
+                        answer=True, 
+                        prompt="...",
+                        completion="...",
+                    )
+                ),
                 completion_prediction=CompletionPrediction(
-                    p_yes=0.6, confidence=0.8
+                    p_yes=0.6, 
+                    confidence=0.8,
                 ),
                 info_utility=0.9,
             )

@@ -20,6 +20,7 @@ from evo_researcher.benchmark.utils import (
     PredictionsCache,
     get_llm_api_call_cost,
     get_markets,
+    should_not_happen,
 )
 
 
@@ -263,10 +264,15 @@ class Benchmarker:
             agent_predictions = [self.get_prediction(agent_name=agent, question=q) for q in market_questions]
             markets_summary[f"{agent} p_yes"] = [
                 (
-                    p.completion_prediction.p_yes if p.completion_prediction  # Probability
-                    else "N/A" if not p.question_evaluation  # Not evaluated for some reason
-                    else "S" if not p.question_evaluation.is_predictable.answer  # Skipped (evaluated to be not predictable)
-                    else "F"  # Failed (no prediction)
+                    p.completion_prediction.p_yes 
+                    if p.question_evaluation and p.question_evaluation.is_predictable.answer and p.completion_prediction  # Is answerable and answered
+                    else "N/A" 
+                    if not p.question_evaluation and not p.completion_prediction # Not evaluated for some reason
+                    else "S" 
+                    if p.question_evaluation and not p.question_evaluation.is_predictable.answer  # Skipped (evaluated to be not predictable)
+                    else "F" 
+                    if p.question_evaluation and p.question_evaluation.is_predictable.answer and not p.completion_prediction # Failed (no prediction)
+                    else should_not_happen(f"Unexpected case in get_markets_summary() for {p}.")
                 )
                 for p in agent_predictions
             ]
