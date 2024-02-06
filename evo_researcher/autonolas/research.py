@@ -299,6 +299,7 @@ class Prediction(TypedDict):
     decision: Optional[str]
     decision_token_prob: Optional[float]
     p_yes: float
+    p_no: float
     confidence: float
     info_utility: float
 
