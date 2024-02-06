@@ -1146,12 +1146,6 @@ def make_prediction(
     current_time_utc = datetime.now(timezone.utc)
     formatted_time_utc = current_time_utc.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-6] + "Z"
 
-    prediction_prompt = PREDICTION_PROMPT.format(
-        user_prompt=prompt,
-        additional_information=additional_information,
-        timestamp=formatted_time_utc,
-    )
-    
     prediction_prompt = ChatPromptTemplate.from_template(template=PREDICTION_PROMPT)
 
     llm = ChatOpenAI(model=engine, temperature=temperature, openai_api_key=open_ai_key)
