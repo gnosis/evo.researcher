@@ -22,6 +22,7 @@ from evo_researcher.benchmark.utils import (
     get_markets,
     should_not_happen,
 )
+from evo_researcher.functions.cache import ENABLE_CACHE
 
 
 class Benchmarker:
@@ -100,7 +101,8 @@ class Benchmarker:
                     )
                     if prediction is None:
                         return market.question, None
-                    prediction.time = time.time() - start
+                    # Set time only if we aren't using cache, otherwise it won't be accurate. 
+                    prediction.time = time.time() - start if not ENABLE_CACHE else None
 
                     if cb.total_tokens > 0 and cb.total_cost == 0:
                         # TODO: this is a hack to get the cost for an unsupported model
