@@ -58,8 +58,8 @@ class Benchmarker:
             "% correct outcome": self._compute_correct_outcome_percentage,
             "confidence/p_yes error correlation": self._compute_confidence_p_yes_error_correlation,
             "Mean info_utility": self._compute_mean_info_utility,
-            "Ratio answerable": self._compute_ratio_evaluated_as_answerable,
-            "Ratio answered": self._compute_ratio_answered,
+            "Proportion answerable": self._compute_ratio_evaluated_as_answerable,
+            "Proportion answered": self._compute_ratio_answered,
             "Mean cost ($)": self._compute_mean_cost,
             "Mean time (s)": self._compute_mean_time,
         }
@@ -260,9 +260,15 @@ class Benchmarker:
         }
 
         for agent in [a.agent_name for a in self.registered_agents]:
+            agent_predictions = [self.get_prediction(agent_name=agent, question=q) for q in market_questions]
             markets_summary[f"{agent} p_yes"] = [
-                p.completion_prediction.p_yes if (p := self.get_prediction(agent_name=agent, question=q)).completion_prediction else None
-                for q in market_questions
+                (
+                    p.completion_prediction.p_yes if p.completion_prediction  # Probability
+                    else "N/A" if not p.question_evaluation  # Not evaluated for some reason
+                    else "S" if not p.question_evaluation.is_predictable.answer  # Skipped (evaluated to be not predictable)
+                    else "F"  # Failed (no prediction)
+                )
+                for p in agent_predictions
             ]
         markets_summary[f"reference p_yes"] = [m.p_yes for m in self.markets]
         return markets_summary
