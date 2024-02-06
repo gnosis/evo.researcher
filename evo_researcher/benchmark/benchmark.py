@@ -47,7 +47,6 @@ class Benchmarker:
         self.metric_fns = metric_fns
         predefined_metric_fns = {
             "MSE for `p_yes`": self._compute_mse,
-            "MSE for `yes` based on token's prob": self._compute_mse_token_prob,
             "Mean confidence": self._compute_mean_confidence,
             "% within +-0.05": lambda predictions, markets: self._compute_percentage_within_range(
                 predictions, markets, tolerance=0.05
@@ -147,17 +146,7 @@ class Benchmarker:
         predictions, markets = self.filter_predictions_for_answered(predictions, markets)
         if not predictions:
             return None
-        mse = sum([(p.completion_prediction.p_yes - m.p_yes) ** 2 for p, m in zip(predictions, markets)])
-        mse /= len(predictions)
-        return mse
-    
-    def _compute_mse_token_prob(
-        self, predictions: t.List[Prediction], markets: t.List[Market]
-    ):
-        mse = sum([
-            (p.p_yes_from_decision_token_prob - m.p_yes) ** 2 
-            for p, m in zip(predictions, markets)
-        ])
+        mse = sum([(p.outcome_prediction.p_yes - m.p_yes) ** 2 for p, m in zip(predictions, markets)])
         mse /= len(predictions)
         return mse
  
@@ -167,7 +156,7 @@ class Benchmarker:
         predictions, markets = self.filter_predictions_for_answered(predictions, markets)
         if not predictions:
             return None
-        mean_confidence = sum([p.completion_prediction.confidence for p in predictions]) / len(predictions)
+        mean_confidence = sum([p.outcome_prediction.confidence for p in predictions]) / len(predictions)
         return mean_confidence
 
     def _compute_mean_info_utility(
@@ -176,7 +165,7 @@ class Benchmarker:
         predictions, markets = self.filter_predictions_for_answered(predictions, markets)
         if not predictions:
             return None
-        mean_info_utility = sum([p.info_utility for p in predictions]) / len(
+        mean_info_utility = sum([p.outcome_prediction.info_utility for p in predictions]) / len(
             predictions
         )
         return mean_info_utility
@@ -193,7 +182,7 @@ class Benchmarker:
 
         within_range_count = 0
         for p, m in zip(predictions, markets):
-            if abs(p.completion_prediction.p_yes - m.p_yes) <= tolerance:
+            if abs(p.outcome_prediction.p_yes - m.p_yes) <= tolerance:
                 within_range_count += 1
 
         return (100 * within_range_count) / len(predictions)
@@ -207,7 +196,7 @@ class Benchmarker:
 
         correct_outcome_count = 0
         for p, m in zip(predictions, markets):
-            if (p.completion_prediction.p_yes > 0.5 and m.p_yes > 0.5) or (p.completion_prediction.p_yes < 0.5 and m.p_yes < 0.5):
+            if (p.outcome_prediction.p_yes > 0.5 and m.p_yes > 0.5) or (p.outcome_prediction.p_yes < 0.5 and m.p_yes < 0.5):
                 correct_outcome_count += 1
 
         return (100 * correct_outcome_count) / len(predictions)
@@ -219,8 +208,8 @@ class Benchmarker:
         if not predictions:
             return None
 
-        p_yes_errors = [abs(p.completion_prediction.p_yes - m.p_yes) for p, m in zip(predictions, markets)]
-        confidences = [p.completion_prediction.confidence for p in predictions]
+        p_yes_errors = [abs(p.outcome_prediction.p_yes - m.p_yes) for p, m in zip(predictions, markets)]
+        confidences = [p.outcome_prediction.confidence for p in predictions]
         return np.corrcoef(confidences, p_yes_errors)[0, 1]
 
     def _compute_mean_cost(
@@ -244,7 +233,7 @@ class Benchmarker:
             return None
         
     def _compute_ratio_evaluated_as_answerable(self, predictions: t.List[Prediction], markets: t.List[Market]):
-        return sum(1 for p in predictions if p.question_evaluation and p.question_evaluation.is_predictable.answer) / len(predictions)
+        return sum(1 for p in predictions if p.evaluation and p.evaluation.is_predictable) / len(predictions)
        
     def _compute_ratio_answered(self, predictions: t.List[Prediction], markets: t.List[Market]):
         return sum(1 for p in predictions if p.is_answered) / len(predictions)
@@ -278,14 +267,14 @@ class Benchmarker:
             agent_predictions = [self.get_prediction(agent_name=agent, question=q) for q in market_questions]
             markets_summary[f"{agent} p_yes"] = [
                 (
-                    p.completion_prediction.p_yes 
-                    if p.question_evaluation and p.question_evaluation.is_predictable.answer and p.completion_prediction  # Is answerable and answered
+                    p.outcome_prediction.p_yes 
+                    if p.evaluation and p.evaluation.is_predictable and p.outcome_prediction  # Is answerable and answered
                     else "N/A" 
-                    if not p.question_evaluation and not p.completion_prediction # Not evaluated for some reason
+                    if not p.evaluation and not p.outcome_prediction # Not evaluated for some reason
                     else "S" 
-                    if p.question_evaluation and not p.question_evaluation.is_predictable.answer  # Skipped (evaluated to be not predictable)
+                    if p.evaluation and not p.evaluation.is_predictable  # Skipped (evaluated to be not predictable)
                     else "F" 
-                    if p.question_evaluation and p.question_evaluation.is_predictable.answer and not p.completion_prediction # Failed (no prediction)
+                    if p.evaluation and p.evaluation.is_predictable and not p.outcome_prediction # Failed (no prediction)
                     else should_not_happen(f"Unexpected case in get_markets_summary() for {p}.")
                 )
                 for p in agent_predictions

@@ -12,7 +12,7 @@ from evo_researcher.autonolas.research import (
 )
 from evo_researcher.benchmark.utils import (
     Prediction, 
-    CompletionPrediction, 
+    OutcomePrediction, 
     EvalautedQuestion,
 )
 
@@ -34,12 +34,12 @@ def completion_prediction_json_to_pydantic_model(
     evaluation_information: t.Optional[EvalautedQuestion],
 ) -> Prediction:
     return Prediction(
-        question_evaluation=evaluation_information,
-        completion_prediction=CompletionPrediction(
+        evaluation=evaluation_information,
+        outcome_prediction=OutcomePrediction(
             p_yes=completion_prediction["p_yes"],
             confidence=completion_prediction["confidence"],
+            info_utility=completion_prediction["info_utility"],
         ),
-        info_utility=completion_prediction["info_utility"],
     )
 
 
@@ -59,7 +59,7 @@ class AbstractBenchmarkedAgent:
 
     def evaluate_research_predict(self, market_question: str) -> t.Optional[Prediction]:
         eval = self.evaluate(market_question=market_question)
-        if not eval.is_predictable.answer:
+        if not eval.is_predictable:
             return None
         researched = self.research(market_question=market_question)
         return self.predict(
@@ -75,11 +75,11 @@ class AbstractBenchmarkedAgent:
 
     def evaluate_research_predict(self, market_question: str) -> Prediction:
         eval = self.evaluate(market_question=market_question)
-        if not eval.is_predictable.answer:
-            return Prediction(question_evaluation=eval)
+        if not eval.is_predictable:
+            return Prediction(evaluation=eval)
         researched = self.research(market_question=market_question)
         if researched is None:
-            return Prediction(question_evaluation=eval)
+            return Prediction(evaluation=eval)
         return self.predict(
             market_question=market_question, 
             researched=researched,
@@ -91,6 +91,7 @@ class OlasAgent(AbstractBenchmarkedAgent):
         super().__init__(agent_name=agent_name, max_workers=max_workers)
         self.model = model
         self.temperature = temperature
+
     def evaluate(self, market_question: str) -> EvalautedQuestion:
         return evaluate_question(question=market_question)
 
