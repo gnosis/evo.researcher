@@ -21,7 +21,6 @@ from evo_researcher.benchmark.utils import (
     get_llm_api_call_cost,
     get_markets,
 )
-from evo_researcher.functions.cache import ENABLE_CACHE
 
 
 class Benchmarker:
@@ -96,8 +95,7 @@ class Benchmarker:
                     prediction = agent.research_and_predict(
                         market_question=market.question
                     )
-                    # Set time only if we aren't using cache, otherwise it won't be accurate. 
-                    prediction.time = time.time() - start if not ENABLE_CACHE else None
+                    prediction.time = time.time() - start
 
                     if cb.total_tokens > 0 and cb.total_cost == 0:
                         # TODO: this is a hack to get the cost for an unsupported model

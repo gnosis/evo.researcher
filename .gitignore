@@ -293,6 +293,3 @@ cython_debug/
 .idea/
 cache
 outputs
-
-# File cache
-.cachedir
