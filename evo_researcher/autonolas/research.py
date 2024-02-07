@@ -26,7 +26,7 @@ from langchain.schema.output_parser import StrOutputParser
 from langchain.embeddings.openai import OpenAIEmbeddings
 
 from dateutil import parser
-from evo_researcher.functions.cache import persisted_inmemory_cache
+from evo_researcher.functions.cache import persistent_inmemory_cache
 from evo_researcher.functions.parallelism import par_map
 
 load_dotenv()
@@ -640,7 +640,7 @@ def concatenate_short_sentences(sentences, len_sentence_threshold):
     return modified_sentences
 
 
-@persisted_inmemory_cache
+@persistent_inmemory_cache
 def openai_embedding_cached(text: str, model: str = "text-embedding-ada-002") -> list[float]:
     emb = OpenAIEmbeddings(model=model)
     return emb.embed_query(text)
