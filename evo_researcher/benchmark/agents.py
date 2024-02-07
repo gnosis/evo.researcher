@@ -55,24 +55,8 @@ class AbstractBenchmarkedAgent:
 
     def research(self, market_question: str) -> t.Optional[str]:
         raise NotImplementedError
-    
-    def predict(self, market_question: str, researched: str) -> t.Optional[Prediction]:
-        raise NotImplementedError
 
-    def evaluate_research_predict(self, market_question: str) -> t.Optional[Prediction]:
-        eval = self.evaluate(market_question=market_question)
-        if not eval.is_predictable:
-            return None
-        researched = self.research(market_question=market_question)
-        return self.predict(
-            market_question=market_question, 
-            researched=researched
-        ) if researched is not None else None
-
-    def research(self, market_question: str) -> t.Optional[str]:
-        raise NotImplementedError
-    
-    def predict(self, market_question: str, researched: str, evaluated: EvalautedQuestion) -> t.Optional[Prediction]:
+    def predict(self, market_question: str, researched: str, evaluated: EvalautedQuestion) -> Prediction:
         raise NotImplementedError
 
     def evaluate_research_predict(self, market_question: str) -> Prediction:
@@ -88,6 +72,7 @@ class AbstractBenchmarkedAgent:
             evaluated=eval,
         )
 
+      
 class OlasAgent(AbstractBenchmarkedAgent):
     def __init__(self, model: str, temperature: float, agent_name: str = "olas", max_workers: t.Optional[int] = None, embedding_model: EmbeddingModel = EmbeddingModel.spacy):
         super().__init__(agent_name=agent_name, max_workers=max_workers)
@@ -109,7 +94,7 @@ class OlasAgent(AbstractBenchmarkedAgent):
             print(f"Error in OlasAgent's research: {e}")
             return None
         
-    def predict(self, market_question: str, researched: str, evaluated: EvalautedQuestion) -> t.Optional[Prediction]:
+    def predict(self, market_question: str, researched: str, evaluated: EvalautedQuestion) -> Prediction:
         try:
             return _make_prediction(
                 market_question=market_question,
@@ -120,7 +105,7 @@ class OlasAgent(AbstractBenchmarkedAgent):
             )
         except ValueError as e:
             print(f"Error in OlasAgent's predict: {e}")
-            return None
+            return Prediction(evaluation=evaluated)
 
 class EvoAgent(AbstractBenchmarkedAgent):
     def __init__(self, model: str, temperature: float, agent_name: str = "evo", max_workers: t.Optional[int] = None):
@@ -147,7 +132,7 @@ class EvoAgent(AbstractBenchmarkedAgent):
             print(f"Error in EvoAgent's research: {e}")
             return None
 
-    def predict(self, market_question: str, researched: str, evaluated: EvalautedQuestion) -> t.Optional[Prediction]:
+    def predict(self, market_question: str, researched: str, evaluated: EvalautedQuestion) -> Prediction:
         try:
             return _make_prediction(
                 market_question=market_question, 
@@ -158,7 +143,7 @@ class EvoAgent(AbstractBenchmarkedAgent):
             )
         except ValueError as e:
             print(f"Error in EvoAgent's predict: {e}")
-            return None
+            return Prediction(evaluation=evaluated)
 
 
 class RephrasingOlasAgent(OlasAgent):
